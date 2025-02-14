@@ -34,6 +34,7 @@ interface Loan {
 export default function LoanCalculator() {
   const [paymentStrategy, setPaymentStrategy] = useState("avalanche")
   const [monthlyPayment, setMonthlyPayment] = useState(500)
+  const MIN_PAYMENT = 10
   const [loans, setLoans] = useState<Loan[]>([
     {
       id: "1",
@@ -47,8 +48,7 @@ export default function LoanCalculator() {
   const totalPrincipal = loans.reduce((sum, loan) => sum + loan.amount, 0)
   const averageRate = loans.reduce((sum, loan) => sum + loan.rate * (loan.amount / totalPrincipal), 0)
 
-  // Calculate months until paid off based on total debt and monthly payment
-  const monthsUntilPaidOff = Math.ceil(totalPrincipal / monthlyPayment)
+  const monthsUntilPaidOff = Math.ceil(totalPrincipal / Math.max(monthlyPayment, MIN_PAYMENT))
   const paidOffDate = new Date()
   paidOffDate.setMonth(paidOffDate.getMonth() + monthsUntilPaidOff)
 
@@ -105,14 +105,14 @@ export default function LoanCalculator() {
         <div className="space-y-6">
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Payment Strategy</h2>
-            <RadioGroup value={paymentStrategy} onValueChange={setPaymentStrategy}>
+            <RadioGroup value={paymentStrategy} onValueChange={setPaymentStrategy} aria-label="Payment Strategy">
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="avalanche" id="avalanche" />
-                <Label htmlFor="avalanche">Highest Interest Rate (Avalanche)</Label>
+                <RadioGroupItem value="avalanche" id="avalanche" aria-labelledby="avalanche-label" />
+                <Label htmlFor="avalanche" id="avalanche-label">Highest Interest Rate (Avalanche)</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="snowball" id="snowball" />
-                <Label htmlFor="snowball">Lowest Principal (Snowball)</Label>
+                <RadioGroupItem value="snowball" id="snowball" aria-labelledby="snowball-label" />
+                <Label htmlFor="snowball" id="snowball-label">Lowest Principal (Snowball)</Label>
               </div>
             </RadioGroup>
           </div>
@@ -128,13 +128,14 @@ export default function LoanCalculator() {
               max={2000}
               step={10}
               className="w-full"
+              aria-label="Monthly Payment"
             />
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">My Loans</h2>
-              <Button onClick={addLoan} variant="outline" size="sm">
+              <Button onClick={addLoan} variant="outline" size="sm" aria-label="Add Loan">
                 Add Loan
               </Button>
             </div>
@@ -146,8 +147,9 @@ export default function LoanCalculator() {
                       value={loan.name}
                       onChange={(e) => updateLoan(loan.id, "name", e.target.value)}
                       className="w-[120px]"
+                      aria-label={`Loan Name ${loan.id}`}
                     />
-                    <Button onClick={() => removeLoan(loan.id)} variant="ghost" size="sm">
+                    <Button onClick={() => removeLoan(loan.id)} variant="ghost" size="sm" aria-label={`Remove Loan ${loan.id}`}>
                       Remove
                     </Button>
                   </div>
@@ -161,6 +163,7 @@ export default function LoanCalculator() {
                           value={loan.amount}
                           onChange={(e) => updateLoan(loan.id, "amount", e.target.value)}
                           className="pl-8"
+                          aria-label={`Loan Amount ${loan.id}`}
                         />
                       </div>
                     </div>
@@ -174,6 +177,7 @@ export default function LoanCalculator() {
                           onChange={(e) => updateLoan(loan.id, "rate", e.target.value)}
                           className="pl-8"
                           step="0.1"
+                          aria-label={`Loan Interest Rate ${loan.id}`}
                         />
                       </div>
                     </div>
@@ -250,6 +254,7 @@ export default function LoanCalculator() {
                     },
                   },
                 }}
+                aria-label="Principal Remaining Chart"
               />
             </CardContent>
           </Card>
@@ -258,4 +263,3 @@ export default function LoanCalculator() {
     </div>
   )
 }
-
