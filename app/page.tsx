@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Line } from "react-chartjs-2"
 import {
   Chart as ChartJS,
@@ -11,6 +11,7 @@ import {
   Title,
   Tooltip,
   Legend,
+  Filler,
 } from "chart.js"
 import { DollarSign, Info, Percent } from "lucide-react"
 
@@ -21,7 +22,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Slider } from "@/components/ui/slider"
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 
 interface Loan {
   id: string
@@ -45,36 +46,44 @@ export default function LoanCalculator() {
     },
   ])
 
-  const totalPrincipal = loans.reduce((sum, loan) => sum + loan.amount, 0)
-  const averageRate = loans.reduce((sum, loan) => sum + loan.rate * (loan.amount / totalPrincipal), 0)
+  const [chartData, setChartData] = useState<{ labels: string[], datasets: { label: string, data: number[], borderColor: string, backgroundColor: string, fill: boolean }[] }>({ labels: [], datasets: [] })
 
-  const monthsUntilPaidOff = Math.ceil(totalPrincipal / Math.max(monthlyPayment, MIN_PAYMENT))
-  const paidOffDate = new Date()
-  paidOffDate.setMonth(paidOffDate.getMonth() + monthsUntilPaidOff)
+  useEffect(() => {
+    const totalPrincipal = loans.reduce((sum, loan) => sum + loan.amount, 0)
+    const averageRate = loans.reduce((sum, loan) => sum + loan.rate * (loan.amount / totalPrincipal), 0)
 
-  // Calculate total interest paid
-  const totalInterest = (totalPrincipal * (averageRate / 100) * monthsUntilPaidOff) / 12
+    const monthsUntilPaidOff = Math.ceil(totalPrincipal / Math.max(monthlyPayment, MIN_PAYMENT))
+    const paidOffDate = new Date()
+    paidOffDate.setMonth(paidOffDate.getMonth() + monthsUntilPaidOff)
 
-  // Generate chart data
-  const labels = Array.from({ length: monthsUntilPaidOff + 1 }, (_, i) => {
-    const date = new Date()
-    date.setMonth(date.getMonth() + i)
-    return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" })
-  })
+    // Calculate total interest paid
+    const totalInterest = (totalPrincipal * (averageRate / 100) * monthsUntilPaidOff) / 12
 
-  const chartData = {
-    labels,
-    datasets: [
-      {
-        label: "Principal Remaining",
-        data: Array.from({ length: monthsUntilPaidOff + 1 }, (_, i) =>
-          Math.max(totalPrincipal - monthlyPayment * i, 0),
-        ),
+    // Generate chart data
+    const labels = Array.from({ length: monthsUntilPaidOff + 1 }, (_, i) => {
+      const date = new Date()
+      date.setMonth(date.getMonth() + i)
+      return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" })
+    })
+
+    const datasets = loans.map((loan) => {
+      const principalRemaining = Array.from({ length: monthsUntilPaidOff + 1 }, (_, i) =>
+        Math.max(loan.amount - loan.payment * i, 0),
+      )
+      return {
+        label: loan.name,
+        data: principalRemaining,
         borderColor: "rgb(53, 162, 235)",
         backgroundColor: "rgba(53, 162, 235, 0.5)",
-      },
-    ],
-  }
+        fill: true,
+      }
+    })
+
+    setChartData({
+      labels,
+      datasets,
+    })
+  }, [loans, monthlyPayment])
 
   const addLoan = () => {
     setLoans([
@@ -196,7 +205,7 @@ export default function LoanCalculator() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${totalPrincipal.toLocaleString()}</div>
+                <div className="text-2xl font-bold">${loans.reduce((sum, loan) => sum + loan.amount, 0).toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">Total amount left to pay</p>
               </CardContent>
             </Card>
@@ -207,9 +216,9 @@ export default function LoanCalculator() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {paidOffDate.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                  {new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" })}
                 </div>
-                <p className="text-xs text-muted-foreground">{monthsUntilPaidOff} months to go</p>
+                <p className="text-xs text-muted-foreground">{Math.ceil(loans.reduce((sum, loan) => sum + loan.amount, 0) / Math.max(monthlyPayment, MIN_PAYMENT))} months to go</p>
               </CardContent>
             </Card>
             <Card>
@@ -218,7 +227,7 @@ export default function LoanCalculator() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${totalInterest.toFixed(2)}</div>
+                <div className="text-2xl font-bold">${((loans.reduce((sum, loan) => sum + loan.amount, 0) * (loans.reduce((sum, loan) => sum + loan.rate * (loan.amount / loans.reduce((sum, loan) => sum + loan.amount, 0)), 0) / 100) * Math.ceil(loans.reduce((sum, loan) => sum + loan.amount, 0) / Math.max(monthlyPayment, MIN_PAYMENT))) / 12).toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">Total interest paid</p>
               </CardContent>
             </Card>
@@ -228,7 +237,7 @@ export default function LoanCalculator() {
                 <Percent className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{averageRate.toFixed(2)}%</div>
+                <div className="text-2xl font-bold">{loans.reduce((sum, loan) => sum + loan.rate * (loan.amount / loans.reduce((sum, loan) => sum + loan.amount, 0)), 0).toFixed(2)}%</div>
                 <p className="text-xs text-muted-foreground">Weighted average interest rate</p>
               </CardContent>
             </Card>
@@ -248,9 +257,13 @@ export default function LoanCalculator() {
                   scales: {
                     y: {
                       beginAtZero: true,
+                      stacked: true,
                       ticks: {
                         callback: (value) => `$${value}`,
                       },
+                    },
+                    x: {
+                      stacked: true,
                     },
                   },
                 }}
